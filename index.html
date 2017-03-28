@@ -36,7 +36,7 @@ input {
 <p id="byte" class="ulabel unumber">0</p><p class="ulabel" id="label2">&nbsp;Megabytes wasted (</p><p id="speed" class="ulabel unumber">0</p><p class="ulabel" id="label3">&nbsp;Megabytes per second)</p><br />
 <label id="noti"></label>
 
-<footer>Created &amp; being operated by HLETRD</footer>
+<footer>Created &amp; being operated by HLETRD<br />Special thanks to Booraltak (<a href="https://record.or.kr/">Blog</a>) for providing server.</footer>
 </div>
 </div>
 <script>
@@ -47,13 +47,14 @@ threads = 8;
 time = 0;
 goal = 0;
 chunk = 800000;
-v = 1;
+v = 2;
 int = null;
 stopped = false;
 
 files = [
 	'https://lfs2.0101010101.com/files/dummy',
-	'./dummy'
+	'./dummy',
+	'https://record.or.kr/static/dummy'
 ];
 
 var download = function(id) {
@@ -78,7 +79,7 @@ var download = function(id) {
 		}
 	}
 	if (running == true) {
-		url = files[0|Math.random()*2] + '?' + Math.random();
+		url = files[0|Math.random()*5] + '?' + Math.random();
 		xhr[id] = $.ajax({
 			url: url,
 			complete: function(){
@@ -136,8 +137,9 @@ $(document).ready(function() {
 		$('#btn').html('시작');
 		$('#label2').html('&nbsp;MB의 데이터가 낭비되었습니다. (초당&nbsp;');
 		$('#label3').html('&nbsp;MB)');
-		$('footer').html('제작, 운영: HLETRD')
+		$('footer').html('제작, 운영: HLETRD<br />Special thanks to Booraltak (<a href="https://record.or.kr/">Blog</a>) for providing server.')
 	}
+	for (var i in files.slice(0,2)) files.push(files.slice(-1)[0]);
 });
 </script>
 </body>
