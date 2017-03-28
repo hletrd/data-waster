@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Data waster</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+<style type="text/css">
+.unumber {
+	font-weight: 700 !important;
+}
+.ulabel {
+	display: inline-block;
+}
+input {
+	text-align: right;
+}
+</style>
+<meta property="og:title" content="Data Waster" />
+<meta property="og:description" content="The fastest way to waste your valuable mobile data" />
+<meta property="og:url" content="https://0101010101.com/labs/datawaster" />
+</head>
+<body>
+<div class="container">
+<div class="jumbotron">
+<h1>Data Waster</h1>
+<p id="desc">The fastest and the most efficient way to waste your valuable mobile data.</p>
+<hr>
+<div class="form-inline">
+	<label id="label1">I want to waste <input type="text" value="0" class="form-control" id="goal"> Megabytes of my valuable mobile data! (0 = infinite)</label><br/>
+</div>
+<br />
+<a class="btn btn-primary btn-lg btn-block" href="#" role="button" id="btn">Start</a>
+<hr>
+<p id="byte" class="ulabel unumber">0</p><p class="ulabel" id="label2">&nbsp;Megabytes wasted (</p><p id="speed" class="ulabel unumber">0</p><p class="ulabel" id="label3">&nbsp;Megabytes per second)</p><br />
+<label id="noti"></label>
+
+<footer>Created &amp; being operated by HLETRD</footer>
+</div>
+</div>
+<script>
+running = false;
+wasted = 0;
+xhr = [];
+threads = 8;
+time = 0;
+goal = 0;
+chunk = 800000;
+v = 1;
+int = null;
+stopped = false;
+
+files = [
+	'https://lfs2.0101010101.com/files/dummy',
+	'./dummy'
+];
+
+var download = function(id) {
+	if (xhr[id] && xhr[id].status == 200) {
+		//wasted += parseInt(xhr[id].getResponseHeader('Content-Length'));
+		wasted += chunk;
+		$('#byte').html((0|wasted*100/1048576)/100);
+		speed = wasted/((new Date().getTime())-time)*1000;
+		speed = (0|speed*100/1048576)/100;
+		$('#speed').html(speed);
+		if (speed < 1) {
+			if (navigator.language.indexOf('ko') !== -1) {
+				$('#noti').html('인터넷 속도가 느려 데이터를 효과적으로 낭비하지 못할 수 있습니다.');
+			} else {
+				$('#noti').html('Your network is not fast enough to efficiently waste your data.');
+			}
+		} else {
+			$('#noti').html('');
+		}
+		if (wasted >= 1048576*1024*100 || (goal !== 0 && wasted >= goal*1048576)) {
+			stop();
+		}
+	}
+	if (running == true) {
+		url = files[0|Math.random()*2] + '?' + Math.random();
+		xhr[id] = $.ajax({
+			url: url,
+			complete: function(){
+				download(id);
+			}
+		});
+	}
+};
+
+var start = function() {
+	$('#goal').prop('disabled', true);
+	$('#btn').html(navigator.language.indexOf('ko') !== -1?'정지':'Stop');
+	running = true;
+	wasted = 0;
+	xhr = [];
+	time = new Date().getTime();
+	goal = parseInt($('#goal').val());
+	for (var i = 0; i < threads; i++) {
+		download(i);
+	}
+	int = setInterval(function() {
+		$.get('./v.json', function(data) {
+			if (data.version > v) {
+				stop();
+				if (navigator.language.indexOf('ko') !== -1) {
+					$('#btn').html('구 버전의 페이지를 사용하고 있습니다. 페이지를 새로고침해 주세요.');
+				} else {
+					$('#btn').html('Page out of date. Please refresh this page.');
+				}
+				stopped = true;
+			}
+		});
+	}, 10000);
+}
+
+var stop = function() {
+	running = false;
+	$('#goal').prop('disabled', false);
+	$('#btn').html(navigator.language.indexOf('ko') !== -1?'시작':'Start');
+}
+
+$('#btn').on('click', function() {
+	if (running == false && stopped == false) {
+		start();
+	} else if (stopped == false) {
+		stop();
+	}
+});
+
+$(document).ready(function() {
+	if (navigator.language.indexOf('ko') !== -1) {
+		$('h1').html('데이터 낭비기');
+		$('#desc').html('소중한 데이터를 낭비할 수 있는 가장 빠르고 효율적인 방법.');
+		$('#label1').html('저의 소중한 데이터 <input type="text" value="0" class="form-control" id="goal"> MB를 낭비하겠습니다. (0 = 제한없음)');
+		$('#btn').html('시작');
+		$('#label2').html('&nbsp;MB의 데이터가 낭비되었습니다. (초당&nbsp;');
+		$('#label3').html('&nbsp;MB)');
+		$('footer').html('제작, 운영: HLETRD')
+	}
+});
+</script>
+</body>
+</html>
