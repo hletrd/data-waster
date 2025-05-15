@@ -410,6 +410,7 @@ class DataWaster {
           if (!(errorMsg.includes('CORS') ||
                 errorMsg.includes('NetworkError') ||
                 errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
+                  console.log(errorMsg)
             throw fetchError;
           }
         }
