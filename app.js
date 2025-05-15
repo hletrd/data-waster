@@ -408,9 +408,9 @@ class DataWaster {
         } catch (fetchError) {
           const errorMsg = fetchError.message || '';
           if (!(errorMsg.includes('CORS') ||
+                errorMsg.includes('Failed to fetch') ||
                 errorMsg.includes('NetworkError') ||
                 errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
-                  console.log(errorMsg)
             throw fetchError;
           }
         }
