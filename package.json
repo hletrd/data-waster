@@ -1,0 +1,17 @@
+{
+  "name": "data-waster",
+  "version": "1.0.0",
+  "description": "The fastest and the most efficient way to waste your valuable mobile data",
+  "main": ".js",
+  "scripts": {
+    "start": "node generate.js"
+  },
+  "keywords": [
+    "entropy",
+    "testing",
+    "data",
+    "random"
+  ],
+  "author": "hletrd",
+  "license": "MIT"
+}
