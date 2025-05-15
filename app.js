@@ -406,7 +406,7 @@ class DataWaster {
 
         try {
           await fetch(url, {
-            method: 'OPTIONS',
+            method: 'GET',
             headers: {
               'Content-Encoding': 'identity',
               ...randomHeaders
