@@ -129,13 +129,39 @@
         </div>
 
         <div class="row mb-4">
+          <div class="col-12 mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span class="value-number" id="totalBytesProcessed">0</span>
+                <span id="totalProgressLabel">MB total</span>
+              </div>
+              <div class="text-end">
+                <span class="value-number" id="totalTransferSpeed">0</span>
+                <span id="totalSpeedLabel">MB/sec</span>
+              </div>
+            </div>
+          </div>
           <div class="col-md-6">
-            <span class="value-number" id="bytesProcessed">0</span>
-            <span id="progressLabel">MB processed</span>
+            <div class="d-flex align-items-center">
+              <div class="me-2">
+                <svg width="12" height="12"><rect width="12" height="12" style="fill:#0d6efd" /></svg>
+              </div>
+              <div>
+                <span class="value-number" id="bytesDownloaded">0</span>
+                <span id="downloadProgressLabel">MB downloaded</span>
+              </div>
+            </div>
           </div>
           <div class="col-md-6 text-md-end">
-            <span class="value-number" id="transferSpeed">0</span>
-            <span id="speedLabel">MB/sec</span>
+            <div class="d-flex align-items-center justify-content-md-end">
+              <div class="me-2">
+                <svg width="12" height="12"><rect width="12" height="12" style="fill:#198754" /></svg>
+              </div>
+              <div>
+                <span class="value-number" id="bytesUploaded">0</span>
+                <span id="uploadProgressLabel">MB uploaded</span>
+              </div>
+            </div>
           </div>
         </div>
 

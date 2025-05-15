@@ -60,8 +60,13 @@ class DataWaster {
     this.dataSizeInput = document.getElementById('dataSize');
     this.downloadOption = document.getElementById('downloadOption');
     this.uploadOption = document.getElementById('uploadOption');
-    this.bytesProcessedElement = document.getElementById('bytesProcessed');
-    this.transferSpeedElement = document.getElementById('transferSpeed');
+
+    // Update element references for separate metrics
+    this.totalBytesProcessedElement = document.getElementById('totalBytesProcessed');
+    this.bytesDownloadedElement = document.getElementById('bytesDownloaded');
+    this.bytesUploadedElement = document.getElementById('bytesUploaded');
+    this.totalTransferSpeedElement = document.getElementById('totalTransferSpeed');
+
     this.downloadProgressBar = document.getElementById('downloadProgress');
     this.uploadProgressBar = document.getElementById('uploadProgress');
     this.statusMessage = document.getElementById('statusMessage');
@@ -95,6 +100,7 @@ class DataWaster {
   }
 
   applyLanguage() {
+    // Apply text to all labeled elements
     const elementsToTranslate = {
       'title': 'title',
       'desc': 'desc',
@@ -102,8 +108,10 @@ class DataWaster {
       'uploadLabel': 'uploadLabel',
       'sizeLabel': 'sizeLabel',
       'threadLabel': 'threadLabel',
-      'progressLabel': 'progressLabel',
-      'speedLabel': 'speedLabel'
+      'downloadProgressLabel': 'downloadProgressLabel',
+      'uploadProgressLabel': 'uploadProgressLabel',
+      'totalProgressLabel': 'totalProgressLabel',
+      'totalSpeedLabel': 'totalSpeedLabel'
     };
 
     Object.entries(elementsToTranslate).forEach(([key, id]) => {
@@ -113,6 +121,7 @@ class DataWaster {
       }
     });
 
+    // Set start button text
     if (this.startButton && this.#lang.startButton) {
       this.startButton.textContent = this.#lang.startButton;
     }
@@ -425,24 +434,37 @@ class DataWaster {
   }
 
   updateUI() {
+    // Calculate bytes processed
     const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
 
+    // Calculate download and upload percentages relative to the target
     const downloadPercent = this.#targetSize > 0 ? (this.#bytesDownloaded / this.#targetSize) * 100 : 0;
     const uploadPercent = this.#targetSize > 0 ? (this.#bytesUploaded / this.#targetSize) * 100 : 0;
     const totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
 
+    // Calculate speed
     const elapsedSeconds = (Date.now() - this.#startTime) / 1000;
     const speedMbps = elapsedSeconds > 0 ? (totalBytes / this.#MB) / elapsedSeconds : 0;
 
-    this.bytesProcessedElement.textContent = (totalBytes / this.#MB).toFixed(2);
-    this.transferSpeedElement.textContent = speedMbps.toFixed(2);
+    // Update UI elements for separate metrics
+    this.totalBytesProcessedElement.textContent = (totalBytes / this.#MB).toFixed(2);
+    this.bytesDownloadedElement.textContent = (this.#bytesDownloaded / this.#MB).toFixed(2);
+    this.bytesUploadedElement.textContent = (this.#bytesUploaded / this.#MB).toFixed(2);
+    this.totalTransferSpeedElement.textContent = speedMbps.toFixed(2);
 
+    // Update progress bars - in stacked progress bars we set the width of the container div
     this.downloadProgressBar.parentElement.style.width = `${downloadPercent}%`;
     this.uploadProgressBar.parentElement.style.width = `${uploadPercent}%`;
 
+    // Update aria attributes for accessibility
     this.downloadProgressBar.parentElement.setAttribute('aria-valuenow', downloadPercent.toFixed(1));
     this.uploadProgressBar.parentElement.setAttribute('aria-valuenow', uploadPercent.toFixed(1));
 
+    // Only show warning if:
+    // 1. We're running
+    // 2. Speed is slow (< 1MB/s)
+    // 3. At least 30 seconds have passed since start
+    // 4. We have received at least one response
     const timeSinceStart = Date.now() - this.#operationStartTime;
     const shouldShowWarning = this.#running &&
                              speedMbps < 1 &&
@@ -454,6 +476,7 @@ class DataWaster {
         'Your network is not fast enough to efficiently waste your data.';
       this.statusMessage.className = 'text-warning';
     } else if (this.#running && this.statusMessage.textContent === this.#lang.slowNetworkWarning) {
+      // Clear the warning if it was previously set but conditions no longer apply
       this.statusMessage.textContent = '';
     }
   }
