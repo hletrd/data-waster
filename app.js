@@ -217,16 +217,34 @@ class DataWaster {
   startDownload() {
     const threadsToUse = this.#isUploadMode ? Math.floor(this.#threadCount / 2) : this.#threadCount;
 
-    const sizePerThread = Math.ceil(this.#targetSize / threadsToUse);
+    this.getFileSize().then(fileSize => {
+      let sizePerThread = Math.ceil(this.#targetSize / threadsToUse);
 
-    const ranges = Array.from({ length: threadsToUse }, (_, i) => {
-      const start = i * sizePerThread;
-      const end = Math.min(start + sizePerThread - 1, this.#targetSize - 1);
-      return start < this.#targetSize ? { start, end } : null;
-    }).filter(Boolean);
+      if (fileSize > 0 && fileSize < this.#targetSize) {
+        sizePerThread = Math.ceil(fileSize / threadsToUse);
+      }
 
-    ranges.forEach((range, index) => {
-      this.downloadChunk(index, range.start, range.end);
+      const ranges = Array.from({ length: threadsToUse }, (_, i) => {
+        const start = i * sizePerThread;
+        const end = Math.min(start + sizePerThread - 1, fileSize > 0 ? fileSize - 1 : this.#targetSize - 1);
+        return start < (fileSize > 0 ? fileSize : this.#targetSize) ? { start, end } : null;
+      }).filter(Boolean);
+
+      ranges.forEach((range, index) => {
+        this.downloadChunk(index, range.start, range.end);
+      });
+    }).catch(() => {
+      const sizePerThread = Math.ceil(this.#targetSize / threadsToUse);
+
+      const ranges = Array.from({ length: threadsToUse }, (_, i) => {
+        const start = i * sizePerThread;
+        const end = Math.min(start + sizePerThread - 1, this.#targetSize - 1);
+        return start < this.#targetSize ? { start, end } : null;
+      }).filter(Boolean);
+
+      ranges.forEach((range, index) => {
+        this.downloadChunk(index, range.start, range.end);
+      });
     });
   }
 
@@ -248,6 +266,12 @@ class DataWaster {
       });
 
       this.#firstResponseReceived = true;
+
+      if (response.status === 416) {
+        console.log(`Range request not satisfiable (file size likely smaller than requested range): ${start}-${end}`);
+        this.downloadWithoutRange(threadId);
+        return;
+      }
 
       if (!response.ok && response.status !== 206) {
         throw new Error('Range header not supported');
@@ -273,6 +297,11 @@ class DataWaster {
       }
     } catch (error) {
       if (error.name === 'AbortError') {
+        return;
+      }
+
+      if (error.message && error.message.includes('416')) {
+        this.downloadWithoutRange(threadId);
         return;
       }
 
@@ -436,29 +465,23 @@ class DataWaster {
   }
 
   updateUI() {
-    // Calculate bytes processed
     const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
 
-    // Calculate download and upload percentages relative to the target
     const downloadPercent = this.#targetSize > 0 ? (this.#bytesDownloaded / this.#targetSize) * 100 : 0;
     const uploadPercent = this.#targetSize > 0 ? (this.#bytesUploaded / this.#targetSize) * 100 : 0;
     const totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
 
-    // Calculate speed
     const elapsedSeconds = (Date.now() - this.#startTime) / 1000;
     const speedMbps = elapsedSeconds > 0 ? (totalBytes / this.#MB) / elapsedSeconds : 0;
 
-    // Update UI elements for separate metrics
     this.totalBytesProcessedElement.textContent = (totalBytes / this.#MB).toFixed(2);
     this.bytesDownloadedElement.textContent = (this.#bytesDownloaded / this.#MB).toFixed(2);
     this.bytesUploadedElement.textContent = (this.#bytesUploaded / this.#MB).toFixed(2);
     this.totalTransferSpeedElement.textContent = speedMbps.toFixed(2);
 
-    // Update progress bars - in stacked progress bars we set the width of the container div
     this.downloadProgressBar.parentElement.style.width = `${downloadPercent}%`;
     this.uploadProgressBar.parentElement.style.width = `${uploadPercent}%`;
 
-    // Update aria attributes for accessibility
     this.downloadProgressBar.parentElement.setAttribute('aria-valuenow', downloadPercent.toFixed(1));
     this.uploadProgressBar.parentElement.setAttribute('aria-valuenow', uploadPercent.toFixed(1));
 
@@ -478,7 +501,6 @@ class DataWaster {
         'Your network is not fast enough to efficiently waste your data.';
       this.statusMessage.className = 'text-warning';
     } else if (this.#running && this.statusMessage.textContent === this.#lang.slowNetworkWarning) {
-      // Clear the warning if it was previously set but conditions no longer apply
       this.statusMessage.textContent = '';
     }
   }
@@ -508,8 +530,26 @@ class DataWaster {
 
     this.updateStartButtonState();
   }
+
+  async getFileSize() {
+    try {
+      const response = await fetch(this.#downloadFile, {
+        method: 'HEAD',
+        cache: 'no-cache'
+      });
+
+      if (!response.ok) return 0;
+
+      const contentLength = response.headers.get('Content-Length');
+      return contentLength ? parseInt(contentLength) : 0;
+    } catch (error) {
+      console.warn('Could not determine file size:', error);
+      return 0;
+    }
+  }
 }
 
+// Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.dataWaster = new DataWaster();
 });
