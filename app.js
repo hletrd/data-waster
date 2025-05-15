@@ -378,7 +378,9 @@ class DataWaster {
           });
         } catch (fetchError) {
           const errorMsg = fetchError.message || '';
-          if (!(errorMsg.includes('CORS') || errorMsg.includes('NetworkError'))) {
+          if (!(errorMsg.includes('CORS') ||
+                errorMsg.includes('NetworkError') ||
+                errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
             throw fetchError;
           }
         }
