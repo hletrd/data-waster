@@ -1,144 +1,107 @@
 <!doctype html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Data waster</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
-<style type="text/css">
-.unumber {
-	font-weight: 700 !important;
-}
-.ulabel {
-	display: inline-block;
-}
-input {
-	text-align: right;
-}
-</style>
-<meta property="og:title" content="Data Waster" />
-<meta property="og:description" content="The fastest way to waste your valuable mobile data" />
-<meta property="og:url" content="https://hletrd.github.io/data-waster/" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data waster</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+
+  <style>
+    .value-number {
+      font-weight: 700 !important;
+    }
+    .form-range {
+      width: 100%;
+    }
+    .form-range::-webkit-slider-thumb {
+      cursor: pointer;
+    }
+    .form-control {
+      text-align: right;
+    }
+    #uploadProgress, #downloadProgress {
+      height: 5px;
+      transition: width 0.1s ease;
+    }
+  </style>
+
+  <meta property="og:title" content="Data Waster" />
+  <meta property="og:description" content="The fastest way to waste your valuable mobile data" />
+  <meta property="og:url" content="https://hletrd.github.io/data-waster/" />
+
+  <script src="./digitalWaste.js" defer></script>
+  <script src="./app.js" defer></script>
 </head>
 <body>
-<div class="container">
-<div class="jumbotron">
-<h1>Data Waster</h1>
-<p id="desc">The fastest and the most efficient way to waste your valuable mobile data.</p>
-<hr>
-<div class="form-inline">
-	<label id="label1">I want to waste <input type="text" value="0" class="form-control" id="goal"> Megabytes of my valuable mobile data! (0 = infinite)</label><br/>
-</div>
-<br />
-<a class="btn btn-primary btn-lg btn-block" href="#" role="button" id="btn">Start</a>
-<hr>
-<p id="byte" class="ulabel unumber">0</p><p class="ulabel" id="label2">&nbsp;Megabytes wasted (</p><p id="speed" class="ulabel unumber">0</p><p class="ulabel" id="label3">&nbsp;Megabytes per second)</p><br />
-<label id="noti"></label>
+  <div class="container py-4">
+    <div class="p-5 mb-4 bg-body-tertiary rounded-3">
+      <div class="container-fluid py-3">
+        <h1 class="display-5 fw-bold" id="title">Data Waster</h1>
+        <p class="col-md-12 fs-4" id="desc">The fastest and most efficient way to waste your valuable mobile data.</p>
+        <hr>
 
-<footer>Created &amp; being operated by HLETRD</footer>
-</div>
-</div>
-<script>
-running = false;
-wasted = 0;
-xhr = [];
-threads = 8;
-time = 0;
-goal = 0;
-chunk = 800000;
-v = 2;
-int = null;
-stopped = false;
+        <div class="row mb-3">
+          <div class="col-md-6 mb-3">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="dataDirection" id="downloadOption" value="download" checked>
+              <label class="form-check-label" for="downloadOption" id="downloadLabel">Download</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="dataDirection" id="uploadOption" value="upload">
+              <label class="form-check-label" for="uploadOption" id="uploadLabel">Upload</label>
+            </div>
+          </div>
+        </div>
 
-files = [
-	'./data-waste.bin',
-];
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label for="dataSize" class="form-label" id="sizeLabel">Data size (MB):</label>
+            <input type="number" class="form-control" id="dataSize" value="100" min="1" max="10000">
+          </div>
+          <div class="col-md-6">
+            <label for="threadCount" class="form-label" id="threadLabel">Concurrent connections:</label>
+            <input type="range" class="form-range" id="threadCount" min="1" max="32" value="8">
+            <div class="text-center" id="threadValue">8</div>
+          </div>
+        </div>
 
-var download = function(id) {
-	if (xhr[id] && xhr[id].status == 200) {
-		//wasted += parseInt(xhr[id].getResponseHeader('Content-Length'));
-		wasted += chunk;
-		$('#byte').html((0|wasted*100/1048576)/100);
-		speed = wasted/((new Date().getTime())-time)*1000;
-		speed = (0|speed*100/1048576)/100;
-		$('#speed').html(speed);
-		if (speed < 1) {
-			if (navigator.language.indexOf('ko') !== -1) {
-				$('#noti').html('인터넷 속도가 느려 데이터를 효과적으로 낭비하지 못할 수 있습니다.');
-			} else {
-				$('#noti').html('Your network is not fast enough to efficiently waste your data.');
-			}
-		} else {
-			$('#noti').html('');
-		}
-		if (wasted >= 1048576*1024*100 || (goal !== 0 && wasted >= goal*1048576)) {
-			stop();
-		}
-	}
-	if (running == true) {
-		url = files[0|Math.random()*5] + '?' + Math.random();
-		xhr[id] = $.ajax({
-			url: url,
-			complete: function(){
-				download(id);
-			}
-		});
-	}
-};
+        <div class="row">
+          <div class="col-12 mb-3">
+            <button class="btn btn-primary btn-lg w-100" type="button" id="startButton">Start</button>
+          </div>
+        </div>
 
-var start = function() {
-	$('#goal').prop('disabled', true);
-	$('#btn').html(navigator.language.indexOf('ko') !== -1?'정지':'Stop');
-	running = true;
-	wasted = 0;
-	xhr = [];
-	time = new Date().getTime();
-	goal = parseInt($('#goal').val());
-	for (var i = 0; i < threads; i++) {
-		download(i);
-	}
-	int = setInterval(function() {
-		$.get('./v.json', function(data) {
-			if (data.version > v) {
-				stop();
-				if (navigator.language.indexOf('ko') !== -1) {
-					$('#btn').html('구 버전의 페이지를 사용하고 있습니다. 페이지를 새로고침해 주세요.');
-				} else {
-					$('#btn').html('Page out of date. Please refresh this page.');
-				}
-				stopped = true;
-			}
-		});
-	}, 10000);
-}
+        <div class="row mb-2">
+          <div class="col-12">
+            <div class="progress" role="progressbar" aria-label="Transfer progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+              <div id="transferProgress" class="progress-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
 
-var stop = function() {
-	running = false;
-	$('#goal').prop('disabled', false);
-	$('#btn').html(navigator.language.indexOf('ko') !== -1?'시작':'Start');
-}
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <span class="value-number" id="bytesProcessed">0</span>
+            <span id="progressLabel">MB processed</span>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <span class="value-number" id="transferSpeed">0</span>
+            <span id="speedLabel">MB/s</span>
+          </div>
+        </div>
 
-$('#btn').on('click', function() {
-	if (running == false && stopped == false) {
-		start();
-	} else if (stopped == false) {
-		stop();
-	}
-});
+        <div class="row">
+          <div class="col-12">
+            <p id="statusMessage" class="text-warning"></p>
+          </div>
+        </div>
 
-$(document).ready(function() {
-	if (navigator.language.indexOf('ko') !== -1) {
-		$('h1').html('데이터 낭비기');
-		$('#desc').html('소중한 데이터를 낭비할 수 있는 가장 빠르고 효율적인 방법.');
-		$('#label1').html('저의 소중한 데이터 <input type="text" value="0" class="form-control" id="goal"> MB를 낭비하겠습니다. (0 = 제한없음)');
-		$('#btn').html('시작');
-		$('#label2').html('&nbsp;MB의 데이터가 낭비되었습니다. (초당&nbsp;');
-		$('#label3').html('&nbsp;MB)');
-		$('footer').html('제작, 운영: HLETRD')
-	}
-	for (var i in files.slice(0,2)) files.push(files.slice(-1)[0]);
-});
-</script>
+        <footer class="pt-3 mt-4 text-body-secondary border-top">
+          Created &amp; maintained by HLETRD
+        </footer>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
