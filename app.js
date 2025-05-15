@@ -358,14 +358,21 @@ class DataWaster {
         const formData = new FormData();
         formData.append('file', blob, 'waste.bin');
 
-        await fetch(this.#uploadEndpoint, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Content-Encoding': 'identity'
-          },
-          signal: controller.signal
-        });
+        try {
+          await fetch(this.#uploadEndpoint, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Content-Encoding': 'identity'
+            },
+            signal: controller.signal
+          });
+        } catch (fetchError) {
+          const errorMsg = fetchError.message || '';
+          if (!(errorMsg.includes('CORS') || errorMsg.includes('NetworkError'))) {
+            throw fetchError;
+          }
+        }
 
         this.#firstResponseReceived = true;
 
@@ -381,8 +388,9 @@ class DataWaster {
         const errorMsg = error.message || '';
         const isMethodNotAllowed = error.status === 405 || errorMsg.includes('405');
         const isProtocolError = errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR');
+        const isCorsError = errorMsg.includes('CORS') || errorMsg.includes('NetworkError');
 
-        if (!isMethodNotAllowed && !isProtocolError) {
+        if (!isMethodNotAllowed && !isProtocolError && !isCorsError) {
           this.statusMessage.textContent = `Upload error: ${error.message}`;
         }
 
