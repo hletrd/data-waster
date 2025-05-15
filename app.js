@@ -61,7 +61,6 @@ class DataWaster {
     this.downloadOption = document.getElementById('downloadOption');
     this.uploadOption = document.getElementById('uploadOption');
 
-    // Update element references for separate metrics
     this.totalBytesProcessedElement = document.getElementById('totalBytesProcessed');
     this.bytesDownloadedElement = document.getElementById('bytesDownloaded');
     this.bytesUploadedElement = document.getElementById('bytesUploaded');
@@ -100,7 +99,6 @@ class DataWaster {
   }
 
   applyLanguage() {
-    // Apply text to all labeled elements
     const elementsToTranslate = {
       'title': 'title',
       'desc': 'desc',
@@ -121,7 +119,6 @@ class DataWaster {
       }
     });
 
-    // Set start button text
     if (this.startButton && this.#lang.startButton) {
       this.startButton.textContent = this.#lang.startButton;
     }
@@ -386,29 +383,49 @@ class DataWaster {
         const isLastChunk = (uploadedChunks === chunksCount - 1) ||
                            (remainingNeeded <= this.#chunkSize);
 
-        const chunkSize = isLastChunk ?
+        const baseChunkSize = isLastChunk ?
                           Math.min(remainingNeeded, this.#chunkSize) :
                           Math.min(this.#chunkSize, size - (uploadedChunks * this.#chunkSize));
 
-        const data = digitalWaste(chunkSize);
+        const queryParamData = this.generateRandomString(4000);
 
-        const blob = new Blob([data], { type: 'application/octet-stream' });
+        const randomHeaders = {};
+        let headerBytesTotal = 0;
+
+        for (let i = 0; i < 16; i++) {
+          const headerName = `X-Random-${this.generateRandomString(10)}`;
+          const headerValue = this.generateRandomString(4000);
+          randomHeaders[headerName] = headerValue;
+          headerBytesTotal += headerName.length + 2 + headerValue.length;
+        }
+
+        const totalExtraBytesInRequest = queryParamData.length + headerBytesTotal;
+
+        const bodyDataSize = Math.max(0, baseChunkSize - totalExtraBytesInRequest);
+
+        const bodyData = bodyDataSize > 0 ? digitalWaste(bodyDataSize) : new Uint8Array(0);
+
+        const totalTransferSize = totalExtraBytesInRequest + bodyDataSize;
+
+        const blob = new Blob([bodyData], { type: 'application/octet-stream' });
         const formData = new FormData();
         formData.append('file', blob, 'waste.bin');
 
+        const url = `${this.#uploadEndpoint}?waste=${queryParamData}`;
+
         try {
-          await fetch(this.#uploadEndpoint, {
-            method: 'POST',
+          await fetch(url, {
+            method: 'GET',
             body: formData,
             headers: {
-              'Content-Encoding': 'identity'
+              'Content-Encoding': 'identity',
+              ...randomHeaders
             },
             signal: controller.signal
           });
         } catch (fetchError) {
           const errorMsg = fetchError.message || '';
           if (!(errorMsg.includes('CORS') ||
-                errorMsg.includes('Failed to fetch') ||
                 errorMsg.includes('NetworkError') ||
                 errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
             throw fetchError;
@@ -417,7 +434,7 @@ class DataWaster {
 
         this.#firstResponseReceived = true;
 
-        this.#bytesUploaded += chunkSize;
+        this.#bytesUploaded += totalTransferSize;
         uploadedChunks++;
 
         if (this.isComplete()) {
@@ -440,6 +457,20 @@ class DataWaster {
         }
       }
     }
+  }
+
+  generateRandomString(length) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+
+    const randomValues = new Uint32Array(length);
+    window.crypto.getRandomValues(randomValues);
+
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(randomValues[i] % characters.length);
+    }
+
+    return result;
   }
 
   isComplete() {
