@@ -437,8 +437,11 @@ class DataWaster {
     this.bytesProcessedElement.textContent = (totalBytes / this.#MB).toFixed(2);
     this.transferSpeedElement.textContent = speedMbps.toFixed(2);
 
-    this.downloadProgressBar.style.width = `${downloadPercent}%`;
-    this.uploadProgressBar.style.width = `${uploadPercent}%`;
+    this.downloadProgressBar.parentElement.style.width = `${downloadPercent}%`;
+    this.uploadProgressBar.parentElement.style.width = `${uploadPercent}%`;
+
+    this.downloadProgressBar.parentElement.setAttribute('aria-valuenow', downloadPercent.toFixed(1));
+    this.uploadProgressBar.parentElement.setAttribute('aria-valuenow', uploadPercent.toFixed(1));
 
     const timeSinceStart = Date.now() - this.#operationStartTime;
     const shouldShowWarning = this.#running &&
