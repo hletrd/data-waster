@@ -38,6 +38,12 @@ class DataWaster {
   /** @type {object} */
   #lang = {};
 
+  /** @type {number} */
+  #operationStartTime = 0;
+
+  /** @type {boolean} */
+  #firstResponseReceived = false;
+
   constructor() {
     this.threadCountInput = document.getElementById('threadCount');
     this.threadValueDisplay = document.getElementById('threadValue');
@@ -115,6 +121,8 @@ class DataWaster {
   start() {
     this.#bytesProcessed = 0;
     this.#controllers = [];
+    this.#firstResponseReceived = false;
+    this.#operationStartTime = Date.now();
 
     this.#isDownloadMode = this.downloadOption.checked;
     this.#targetSize = parseInt(this.dataSizeInput.value) * this.#MB;
@@ -190,6 +198,8 @@ class DataWaster {
         },
         signal: controller.signal
       });
+
+      this.#firstResponseReceived = true;
 
       if (!response.ok && response.status !== 206) {
         throw new Error('Range header not supported');
@@ -316,6 +326,8 @@ class DataWaster {
           signal: controller.signal
         });
 
+        this.#firstResponseReceived = true;
+
         this.#bytesProcessed += chunkSize;
         uploadedChunks++;
 
@@ -341,7 +353,7 @@ class DataWaster {
   }
 
   isComplete() {
-    return this.#bytesProcessed >= this.#targetSize;
+    return Math.abs(this.#bytesProcessed - this.#targetSize) < 1;
   }
 
   completeOperation() {
@@ -355,6 +367,7 @@ class DataWaster {
       this.statusMessage.textContent = message
         .replace('{mode}', mode)
         .replace('{size}', size);
+      this.statusMessage.className = 'text-success';
     }
   }
 
@@ -370,9 +383,17 @@ class DataWaster {
     this.transferSpeedElement.textContent = speedMbps.toFixed(2);
     this.progressBar.style.width = `${progressPercent}%`;
 
-    if (this.#running && speedMbps < 1) {
-      this.statusMessage.textContent = this.#lang.slowNetworkWarning || 'Your network is not fast enough to efficiently waste your data.';
-    } else if (this.#running) {
+    const timeSinceStart = Date.now() - this.#operationStartTime;
+    const shouldShowWarning = this.#running &&
+                             speedMbps < 1 &&
+                             timeSinceStart > 30000 &&
+                             this.#firstResponseReceived;
+
+    if (shouldShowWarning) {
+      this.statusMessage.textContent = this.#lang.slowNetworkWarning ||
+        'Your network is not fast enough to efficiently waste your data.';
+      this.statusMessage.className = 'text-warning';
+    } else if (this.#running && this.statusMessage.textContent === this.#lang.slowNetworkWarning) {
       this.statusMessage.textContent = '';
     }
   }
