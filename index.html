@@ -44,11 +44,11 @@
         <div class="row mb-3">
           <div class="col-md-6 mb-3">
             <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="dataDirection" id="downloadOption" value="download" checked>
+              <input class="form-check-input" type="checkbox" id="downloadOption" value="download" checked>
               <label class="form-check-label" for="downloadOption" id="downloadLabel">Download</label>
             </div>
             <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="dataDirection" id="uploadOption" value="upload">
+              <input class="form-check-input" type="checkbox" id="uploadOption" value="upload">
               <label class="form-check-label" for="uploadOption" id="uploadLabel">Upload</label>
             </div>
           </div>
@@ -76,8 +76,9 @@
 
         <div class="row mb-2">
           <div class="col-12">
-            <div class="progress" role="progressbar" aria-label="Transfer progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-              <div id="transferProgress" class="progress-bar" style="width: 0%"></div>
+            <div class="progress" role="progressbar" aria-label="Transfer progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="height: 8px;">
+              <div id="downloadProgress" class="progress-bar bg-primary" style="width: 0%"></div>
+              <div id="uploadProgress" class="progress-bar bg-success" style="width: 0%"></div>
             </div>
           </div>
         </div>

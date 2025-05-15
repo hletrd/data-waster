@@ -5,8 +5,14 @@ class DataWaster {
   /** @type {boolean} */
   #isDownloadMode = true;
 
+  /** @type {boolean} */
+  #isUploadMode = false;
+
   /** @type {number} */
-  #bytesProcessed = 0;
+  #bytesDownloaded = 0;
+
+  /** @type {number} */
+  #bytesUploaded = 0;
 
   /** @type {number} */
   #startTime = 0;
@@ -18,7 +24,10 @@ class DataWaster {
   #threadCount = 8;
 
   /** @type {AbortController[]} */
-  #controllers = [];
+  #downloadControllers = [];
+
+  /** @type {AbortController[]} */
+  #uploadControllers = [];
 
   /** @type {string} */
   #downloadFile = './data-waste.bin';
@@ -53,13 +62,17 @@ class DataWaster {
     this.uploadOption = document.getElementById('uploadOption');
     this.bytesProcessedElement = document.getElementById('bytesProcessed');
     this.transferSpeedElement = document.getElementById('transferSpeed');
-    this.progressBar = document.getElementById('transferProgress');
+    this.downloadProgressBar = document.getElementById('downloadProgress');
+    this.uploadProgressBar = document.getElementById('uploadProgress');
     this.statusMessage = document.getElementById('statusMessage');
 
     this.startButton.addEventListener('click', () => this.toggleOperation());
     this.threadCountInput.addEventListener('input', () => this.updateThreadValue());
+    this.downloadOption.addEventListener('change', () => this.updateStartButtonState());
+    this.uploadOption.addEventListener('change', () => this.updateStartButtonState());
 
     this.updateThreadValue();
+    this.updateStartButtonState();
     this.loadLanguage().then(() => this.applyLanguage());
   }
 
@@ -110,6 +123,11 @@ class DataWaster {
     this.threadValueDisplay.textContent = this.#threadCount;
   }
 
+  updateStartButtonState() {
+    const anySelected = this.downloadOption.checked || this.uploadOption.checked;
+    this.startButton.disabled = !anySelected;
+  }
+
   toggleOperation() {
     if (this.#running) {
       this.stop();
@@ -119,12 +137,21 @@ class DataWaster {
   }
 
   start() {
-    this.#bytesProcessed = 0;
-    this.#controllers = [];
+    if (!this.downloadOption.checked && !this.uploadOption.checked) {
+      this.statusMessage.textContent = 'Please select at least one operation (Download or Upload)';
+      this.statusMessage.className = 'text-warning';
+      return;
+    }
+
+    this.#bytesDownloaded = 0;
+    this.#bytesUploaded = 0;
+    this.#downloadControllers = [];
+    this.#uploadControllers = [];
     this.#firstResponseReceived = false;
     this.#operationStartTime = Date.now();
 
     this.#isDownloadMode = this.downloadOption.checked;
+    this.#isUploadMode = this.uploadOption.checked;
     this.#targetSize = parseInt(this.dataSizeInput.value) * this.#MB;
 
     if (isNaN(this.#targetSize) || this.#targetSize <= 0) {
@@ -143,9 +170,14 @@ class DataWaster {
 
     this.#updateInterval = setInterval(() => this.updateUI(), 100);
 
+    this.statusMessage.textContent = '';
+    this.statusMessage.className = 'text-warning';
+
     if (this.#isDownloadMode) {
       this.startDownload();
-    } else {
+    }
+
+    if (this.#isUploadMode) {
       this.startUpload();
     }
   }
@@ -153,9 +185,8 @@ class DataWaster {
   stop() {
     this.#running = false;
 
-    this.#controllers.forEach(controller => {
-      if (controller) controller.abort();
-    });
+    this.#downloadControllers.forEach(controller => controller?.abort());
+    this.#uploadControllers.forEach(controller => controller?.abort());
 
     this.startButton.textContent = this.#lang.startButton || 'Start';
     this.dataSizeInput.disabled = false;
@@ -170,8 +201,11 @@ class DataWaster {
   }
 
   startDownload() {
-    const sizePerThread = Math.ceil(this.#targetSize / this.#threadCount);
-    const ranges = Array.from({ length: this.#threadCount }, (_, i) => {
+    const threadsToUse = this.#isUploadMode ? Math.floor(this.#threadCount / 2) : this.#threadCount;
+
+    const sizePerThread = Math.ceil(this.#targetSize / threadsToUse);
+
+    const ranges = Array.from({ length: threadsToUse }, (_, i) => {
       const start = i * sizePerThread;
       const end = Math.min(start + sizePerThread - 1, this.#targetSize - 1);
       return start < this.#targetSize ? { start, end } : null;
@@ -186,7 +220,7 @@ class DataWaster {
     if (!this.#running) return;
 
     const controller = new AbortController();
-    this.#controllers[threadId] = controller;
+    this.#downloadControllers[threadId] = controller;
 
     const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
 
@@ -213,10 +247,10 @@ class DataWaster {
 
         if (done || !this.#running) break;
 
-        const remainingNeeded = this.#targetSize - this.#bytesProcessed;
+        const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
         const bytesToCount = Math.min(value.length, remainingNeeded);
 
-        this.#bytesProcessed += bytesToCount;
+        this.#bytesDownloaded += bytesToCount;
 
         if (this.isComplete()) {
           this.completeOperation();
@@ -241,7 +275,7 @@ class DataWaster {
     if (!this.#running) return;
 
     const controller = new AbortController();
-    this.#controllers[threadId] = controller;
+    this.#downloadControllers[threadId] = controller;
     const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
 
     try {
@@ -263,10 +297,10 @@ class DataWaster {
           break;
         }
 
-        const remainingNeeded = this.#targetSize - this.#bytesProcessed;
+        const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
         const bytesToCount = Math.min(value.length, remainingNeeded);
 
-        this.#bytesProcessed += bytesToCount;
+        this.#bytesDownloaded += bytesToCount;
 
         if (this.isComplete()) {
           this.completeOperation();
@@ -281,8 +315,10 @@ class DataWaster {
   }
 
   startUpload() {
-    for (let i = 0; i < this.#threadCount; i++) {
-      const sizePerThread = Math.ceil(this.#targetSize / this.#threadCount);
+    const threadsToUse = this.#isDownloadMode ? Math.floor(this.#threadCount / 2) : this.#threadCount;
+
+    for (let i = 0; i < threadsToUse; i++) {
+      const sizePerThread = Math.ceil(this.#targetSize / threadsToUse);
       const threadSize = Math.min(sizePerThread, this.#targetSize - (i * sizePerThread));
 
       if (threadSize > 0) {
@@ -298,11 +334,11 @@ class DataWaster {
     let uploadedChunks = 0;
 
     const controller = new AbortController();
-    this.#controllers[threadId] = controller;
+    this.#uploadControllers[threadId] = controller;
 
     while (this.#running && uploadedChunks < chunksCount && !this.isComplete()) {
       try {
-        const remainingNeeded = this.#targetSize - this.#bytesProcessed;
+        const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
 
         const isLastChunk = (uploadedChunks === chunksCount - 1) ||
                            (remainingNeeded <= this.#chunkSize);
@@ -328,7 +364,7 @@ class DataWaster {
 
         this.#firstResponseReceived = true;
 
-        this.#bytesProcessed += chunkSize;
+        this.#bytesUploaded += chunkSize;
         uploadedChunks++;
 
         if (this.isComplete()) {
@@ -353,7 +389,8 @@ class DataWaster {
   }
 
   isComplete() {
-    return Math.abs(this.#bytesProcessed - this.#targetSize) < 1;
+    const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
+    return Math.abs(totalBytes - this.#targetSize) < 1;
   }
 
   completeOperation() {
@@ -361,7 +398,10 @@ class DataWaster {
       this.stop();
 
       const message = this.#lang.completionMessage || 'Completed {mode} of {size} MB';
-      const mode = this.#isDownloadMode ? 'download' : 'upload';
+      const modes = [];
+      if (this.#bytesDownloaded > 0) modes.push('download');
+      if (this.#bytesUploaded > 0) modes.push('upload');
+      const mode = modes.join(' and ');
       const size = (this.#targetSize / this.#MB).toFixed(2);
 
       this.statusMessage.textContent = message
@@ -372,16 +412,20 @@ class DataWaster {
   }
 
   updateUI() {
-    const progressPercent = Math.min(100, (this.#bytesProcessed / this.#targetSize) * 100);
+    const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
+
+    const downloadPercent = this.#targetSize > 0 ? (this.#bytesDownloaded / this.#targetSize) * 100 : 0;
+    const uploadPercent = this.#targetSize > 0 ? (this.#bytesUploaded / this.#targetSize) * 100 : 0;
+    const totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
 
     const elapsedSeconds = (Date.now() - this.#startTime) / 1000;
-    const speedMbps = elapsedSeconds > 0
-      ? (this.#bytesProcessed / this.#MB) / elapsedSeconds
-      : 0;
+    const speedMbps = elapsedSeconds > 0 ? (totalBytes / this.#MB) / elapsedSeconds : 0;
 
-    this.bytesProcessedElement.textContent = (this.#bytesProcessed / this.#MB).toFixed(2);
+    this.bytesProcessedElement.textContent = (totalBytes / this.#MB).toFixed(2);
     this.transferSpeedElement.textContent = speedMbps.toFixed(2);
-    this.progressBar.style.width = `${progressPercent}%`;
+
+    this.downloadProgressBar.style.width = `${downloadPercent}%`;
+    this.uploadProgressBar.style.width = `${uploadPercent}%`;
 
     const timeSinceStart = Date.now() - this.#operationStartTime;
     const shouldShowWarning = this.#running &&
