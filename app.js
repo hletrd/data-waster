@@ -400,23 +400,13 @@ class DataWaster {
         }
 
         const totalExtraBytesInRequest = queryParamData.length + headerBytesTotal;
-
-        const bodyDataSize = Math.max(0, baseChunkSize - totalExtraBytesInRequest);
-
-        const bodyData = bodyDataSize > 0 ? digitalWaste(bodyDataSize) : new Uint8Array(0);
-
-        const totalTransferSize = totalExtraBytesInRequest + bodyDataSize;
-
-        const blob = new Blob([bodyData], { type: 'application/octet-stream' });
-        const formData = new FormData();
-        formData.append('file', blob, 'waste.bin');
+        const totalTransferSize = totalExtraBytesInRequest;
 
         const url = `${this.#uploadEndpoint}?waste=${queryParamData}`;
 
         try {
           await fetch(url, {
-            method: 'GET',
-            body: formData,
+            method: 'OPTIONS',
             headers: {
               'Content-Encoding': 'identity',
               ...randomHeaders
