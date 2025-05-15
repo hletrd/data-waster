@@ -1,0 +1,15 @@
+{
+  "title": "데이터 낭비기",
+  "desc": "소중한 데이터를 낭비할 수 있는 가장 빠르고 효율적인 방법.",
+  "downloadLabel": "다운로드",
+  "uploadLabel": "업로드",
+  "sizeLabel": "데이터 크기 (MB):",
+  "threadLabel": "동시 연결 수:",
+  "startButton": "시작",
+  "stopButton": "정지",
+  "progressLabel": "MB 처리됨",
+  "speedLabel": "MB/초",
+  "invalidSizeError": "0MB보다 큰 유효한 데이터 크기를 입력하세요.",
+  "slowNetworkWarning": "네트워크가 데이터를 효율적으로 낭비하기에 충분히 빠르지 않습니다.",
+  "completionMessage": "{size} MB {mode} 완료"
+}
