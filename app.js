@@ -36,7 +36,7 @@ class DataWaster {
   #uploadEndpoint = './wastebin.html';
 
   /** @type {number} */
-  #chunkSize = 1024 * 1024;
+  #chunkSize = 100 * 1024 * 1024;
 
   /** @type {number} */
   #MB = 1048576;
@@ -68,8 +68,8 @@ class DataWaster {
 
     this.startButton.addEventListener('click', () => this.toggleOperation());
     this.threadCountInput.addEventListener('input', () => this.updateThreadValue());
-    this.downloadOption.addEventListener('change', () => this.updateStartButtonState());
-    this.uploadOption.addEventListener('change', () => this.updateStartButtonState());
+    this.downloadOption.addEventListener('click', () => this.toggleDownloadOption());
+    this.uploadOption.addEventListener('click', () => this.toggleUploadOption());
 
     this.updateThreadValue();
     this.updateStartButtonState();
@@ -124,7 +124,9 @@ class DataWaster {
   }
 
   updateStartButtonState() {
-    const anySelected = this.downloadOption.checked || this.uploadOption.checked;
+    const isDownloadActive = this.downloadOption.getAttribute('data-active') === 'true';
+    const isUploadActive = this.uploadOption.getAttribute('data-active') === 'true';
+    const anySelected = isDownloadActive || isUploadActive;
     this.startButton.disabled = !anySelected;
   }
 
@@ -137,7 +139,10 @@ class DataWaster {
   }
 
   start() {
-    if (!this.downloadOption.checked && !this.uploadOption.checked) {
+    const isDownloadActive = this.downloadOption.getAttribute('data-active') === 'true';
+    const isUploadActive = this.uploadOption.getAttribute('data-active') === 'true';
+
+    if (!isDownloadActive && !isUploadActive) {
       this.statusMessage.textContent = 'Please select at least one operation (Download or Upload)';
       this.statusMessage.className = 'text-warning';
       return;
@@ -150,8 +155,8 @@ class DataWaster {
     this.#firstResponseReceived = false;
     this.#operationStartTime = Date.now();
 
-    this.#isDownloadMode = this.downloadOption.checked;
-    this.#isUploadMode = this.uploadOption.checked;
+    this.#isDownloadMode = isDownloadActive;
+    this.#isUploadMode = isUploadActive;
     this.#targetSize = parseInt(this.dataSizeInput.value) * this.#MB;
 
     if (isNaN(this.#targetSize) || this.#targetSize <= 0) {
@@ -440,6 +445,32 @@ class DataWaster {
     } else if (this.#running && this.statusMessage.textContent === this.#lang.slowNetworkWarning) {
       this.statusMessage.textContent = '';
     }
+  }
+
+  toggleDownloadOption() {
+    const isActive = this.downloadOption.getAttribute('data-active') === 'true';
+    this.downloadOption.setAttribute('data-active', (!isActive).toString());
+
+    if (!isActive) {
+      this.downloadOption.classList.add('active');
+    } else {
+      this.downloadOption.classList.remove('active');
+    }
+
+    this.updateStartButtonState();
+  }
+
+  toggleUploadOption() {
+    const isActive = this.uploadOption.getAttribute('data-active') === 'true';
+    this.uploadOption.setAttribute('data-active', (!isActive).toString());
+
+    if (!isActive) {
+      this.uploadOption.classList.add('active');
+    } else {
+      this.uploadOption.classList.remove('active');
+    }
+
+    this.updateStartButtonState();
   }
 }
 

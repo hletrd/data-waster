@@ -34,22 +34,22 @@
   <script src="./app.js" defer></script>
 </head>
 <body>
-  <div class="container py-4">
-    <div class="p-5 mb-4 bg-body-tertiary rounded-3">
-      <div class="container-fluid py-3">
+  <div class="container py-2 py-md-4">
+    <div class="p-3 p-md-5 mb-4 bg-body-tertiary rounded-3">
+      <div class="container-fluid py-2 py-md-3">
         <h1 class="display-5 fw-bold" id="title">Data Waster</h1>
         <p class="col-md-12 fs-4" id="desc">The fastest and most efficient way to waste your valuable mobile data.</p>
         <hr>
 
         <div class="row mb-3">
           <div class="col-md-6 mb-3">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" id="downloadOption" value="download" checked>
-              <label class="form-check-label" for="downloadOption" id="downloadLabel">Download</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" id="uploadOption" value="upload">
-              <label class="form-check-label" for="uploadOption" id="uploadLabel">Upload</label>
+            <div class="btn-group" role="group" aria-label="Data direction options">
+              <button type="button" class="btn btn-outline-primary active" id="downloadOption" data-active="true">
+                <span id="downloadLabel">Download</span>
+              </button>
+              <button type="button" class="btn btn-outline-success" id="uploadOption" data-active="false">
+                <span id="uploadLabel">Upload</span>
+              </button>
             </div>
           </div>
         </div>
