@@ -19,7 +19,6 @@
   <meta property="og:image" content="https://hletrd.github.io/data-waster/og-image.jpg">
   <meta property="og:site_name" content="Data waster">
 
-  <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://hletrd.github.io/data-waster/">
   <meta property="twitter:title" content="Data waster - waste your data">
@@ -75,7 +74,7 @@
   <div class="container py-2 py-md-4">
     <div class="p-3 p-md-5 mb-4 bg-body-tertiary rounded-3">
       <div class="container-fluid py-2 py-md-3">
-        <h1 class="display-5 fw-bold" id="title">Data Waster</h1>
+        <h1 class="display-5 fw-bold" id="title">Data waster</h1>
         <p class="col-md-12 fs-4" id="desc">The fastest and most efficient way to waste your valuable mobile data.</p>
         <hr>
 
@@ -94,15 +93,15 @@
 
         <div class="row mb-3">
           <div class="col-md-6 mb-2 mb-md-0">
-            <label for="dataSize" class="form-label" id="sizeLabel">Data size (MB):</label>
-            <input type="number" class="form-control" id="dataSize" value="10000" min="1" max="10000000">
+            <label for="dataSize" class="form-label" id="sizeLabel">Data size (MB, 0 for infinite):</label>
+            <input type="number" class="form-control" id="dataSize" value="10000" min="0" max="10000000">
           </div>
           <div class="col-md-6 mt-1 mt-md-0">
             <div class="d-flex align-items-center">
               <label for="threadCount" class="form-label me-2" id="threadLabel">Concurrent connections:</label>
               <span id="threadValue" class="fw-bold" style="position: relative; top: -4px;"></span>
             </div>
-            <input type="range" class="form-range" id="threadCount" min="1" max="32" value="8" style="margin-top: 6px;">
+            <input type="range" class="form-range" id="threadCount" min="1" max="64" value="16" style="margin-top: 6px;">
           </div>
         </div>
 
