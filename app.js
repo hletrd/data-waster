@@ -109,7 +109,8 @@ class DataWaster {
       'downloadProgressLabel': 'downloadProgressLabel',
       'uploadProgressLabel': 'uploadProgressLabel',
       'totalProgressLabel': 'totalProgressLabel',
-      'totalSpeedLabel': 'totalSpeedLabel'
+      'totalSpeedLabel': 'totalSpeedLabel',
+      'toggleHint': 'toggleHint'
     };
 
     Object.entries(elementsToTranslate).forEach(([key, id]) => {

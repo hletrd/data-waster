@@ -11,7 +11,8 @@
   "downloadProgressLabel": "MB downloaded",
   "uploadProgressLabel": "MB uploaded",
   "totalSpeedLabel": "MB/sec",
-  "invalidSizeError": "Please enter a valid data size greater than 0 MB",
+  "toggleHint": "Select at least one direction",
+  "invalidSizeError": "Please enter a valid data size.",
   "slowNetworkWarning": "Your network is not fast enough to efficiently waste your data.",
   "completionMessage": "Completed {mode} of {size} MB"
 }
