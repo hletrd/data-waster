@@ -212,6 +212,8 @@ class DataWaster {
     this.uploadOption.disabled = false;
     this.threadCountInput.disabled = false;
 
+    this.updateUI();
+
     if (this.#updateInterval) {
       clearInterval(this.#updateInterval);
       this.#updateInterval = null;
@@ -494,7 +496,25 @@ class DataWaster {
 
   completeOperation() {
     if (this.#running) {
+      if (this.#targetSize > 0) {
+        const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
+        if (Math.abs(this.#targetSize - totalBytes) < this.#MB / 100) {
+          if (this.#isDownloadMode && this.#isUploadMode) {
+            const downloadRatio = this.#bytesDownloaded / totalBytes;
+            const uploadRatio = this.#bytesUploaded / totalBytes;
+            this.#bytesDownloaded = this.#targetSize * downloadRatio;
+            this.#bytesUploaded = this.#targetSize * uploadRatio;
+          } else if (this.#isDownloadMode) {
+            this.#bytesDownloaded = this.#targetSize;
+          } else if (this.#isUploadMode) {
+            this.#bytesUploaded = this.#targetSize;
+          }
+        }
+      }
+
       this.stop();
+
+      this.updateUI();
 
       const message = this.#lang.completionMessage || 'Completed {mode} of {size} MB';
       const modes = [];
@@ -518,9 +538,14 @@ class DataWaster {
     let totalPercent = 0;
 
     if (this.#targetSize > 0) {
-      downloadPercent = (this.#bytesDownloaded / this.#targetSize) * 100;
-      uploadPercent = (this.#bytesUploaded / this.#targetSize) * 100;
-      totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
+      if (!this.#running && totalBytes >= this.#targetSize * 0.99) {
+        downloadPercent = this.#isDownloadMode ? 100 : 0;
+        uploadPercent = this.#isUploadMode ? 100 : 0;
+      } else {
+        downloadPercent = (this.#bytesDownloaded / this.#targetSize) * 100;
+        uploadPercent = (this.#bytesUploaded / this.#targetSize) * 100;
+        totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
+      }
     } else if (this.#running) {
       const cyclePosition = (Date.now() % 5000) / 5000;
       const pulseValue = 40 * Math.sin(cyclePosition * Math.PI * 2) + 50;
@@ -543,18 +568,15 @@ class DataWaster {
     this.bytesUploadedElement.textContent = (this.#bytesUploaded / this.#MB).toFixed(2);
     this.totalTransferSpeedElement.textContent = speedMbps.toFixed(2);
 
-    this.downloadProgressBar.parentElement.style.width = `${downloadPercent}%`;
-    this.uploadProgressBar.parentElement.style.width = `${uploadPercent}%`;
+    const safeDownloadPercent = Math.min(100, downloadPercent);
+    const safeUploadPercent = Math.min(100, uploadPercent);
 
-    this.downloadProgressBar.parentElement.setAttribute('aria-valuenow', downloadPercent.toFixed(1));
-    this.uploadProgressBar.parentElement.setAttribute('aria-valuenow', uploadPercent.toFixed(1));
+    this.downloadProgressBar.parentElement.style.width = `${safeDownloadPercent}%`;
+    this.uploadProgressBar.parentElement.style.width = `${safeUploadPercent}%`;
 
-    // Only show warning if:
-    // 1. We're running
-    // 2. Speed is slow (< 1MB/s)
-    // 3. At least 30 seconds have passed since start
-    // 4. We have received at least one response
-    // 5. We are not in infinite mode (where warning would be redundant)
+    this.downloadProgressBar.parentElement.setAttribute('aria-valuenow', safeDownloadPercent.toFixed(1));
+    this.uploadProgressBar.parentElement.setAttribute('aria-valuenow', safeUploadPercent.toFixed(1));
+
     const timeSinceStart = Date.now() - this.#operationStartTime;
     const shouldShowWarning = this.#running &&
                              speedMbps < 1 &&
