@@ -1,9 +1,9 @@
 {
   "title": "Data waster",
-  "desc": "The fastest and most efficient way to waste your valueble mobile data.",
+  "desc": "The fastest and most efficient way to waste your valuable mobile data.",
   "downloadLabel": "Download",
   "uploadLabel": "Upload",
-  "sizeLabel": "Data size (MB):",
+  "sizeLabel": "Data size (MB, 0 for infinite):",
   "threadLabel": "Concurrent connections:",
   "startButton": "Start",
   "stopButton": "Stop",
