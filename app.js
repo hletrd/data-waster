@@ -258,63 +258,77 @@ class DataWaster {
     const controller = new AbortController();
     this.#downloadControllers[threadId] = controller;
 
-    const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
+    while (this.#running && !this.isComplete()) {
+      try {
+        const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Range': `bytes=${start}-${end}`,
-          'Accept-Encoding': 'identity'
-        },
-        signal: controller.signal
-      });
+        const response = await fetch(url, {
+          headers: {
+            'Range': `bytes=${start}-${end}`,
+            'Accept-Encoding': 'identity'
+          },
+          signal: controller.signal
+        });
 
-      this.#firstResponseReceived = true;
+        this.#firstResponseReceived = true;
 
-      if (response.status === 416) {
-        console.log(`Range request not satisfiable (file size likely smaller than requested range): ${start}-${end}`);
-        this.downloadWithoutRange(threadId);
-        return;
-      }
+        if (response.status === 416) {
+          console.log(`Range request not satisfiable (file size likely smaller than requested range): ${start}-${end}`);
+          this.downloadWithoutRange(threadId);
+          return;
+        }
 
-      if (!response.ok && response.status !== 206) {
-        throw new Error('Range header not supported');
-      }
+        if (!response.ok && response.status !== 206) {
+          throw new Error('Range header not supported');
+        }
 
-      const contentLength = parseInt(response.headers.get('Content-Length') ?? '0');
-      const reader = response.body.getReader();
+        const contentLength = parseInt(response.headers.get('Content-Length') ?? '0');
+        const reader = response.body.getReader();
 
-      while (this.#running && !this.isComplete()) {
-        const { done, value } = await reader.read();
+        let isDone = false;
+        while (this.#running && !this.isComplete() && !isDone) {
+          const { done, value } = await reader.read();
 
-        if (done || !this.#running) break;
+          if (done || !this.#running) {
+            isDone = true;
+            break;
+          }
 
-        const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
-        const bytesToCount = Math.min(value.length, remainingNeeded);
+          const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
+          const bytesToCount = Math.min(value.length, remainingNeeded);
 
-        this.#bytesDownloaded += bytesToCount;
+          this.#bytesDownloaded += bytesToCount;
 
-        if (this.isComplete()) {
-          this.completeOperation();
-          break;
+          if (this.isComplete()) {
+            this.completeOperation();
+            return;
+          }
+        }
+
+        if (!this.isComplete() && this.#running) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return;
+        }
+
+        if (error.message && error.message.includes('416')) {
+          this.downloadWithoutRange(threadId);
+          return;
+        }
+
+        if (error.message === 'Range header not supported' && this.#running) {
+          this.downloadWithoutRange(threadId);
+          return;
+        }
+
+        console.warn(`Download error (continuing anyway): ${error.message}`);
+
+        if (this.#running && !this.isComplete()) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        return;
-      }
-
-      if (error.message && error.message.includes('416')) {
-        this.downloadWithoutRange(threadId);
-        return;
-      }
-
-      if (error.message === 'Range header not supported' && this.#running) {
-        this.downloadWithoutRange(threadId);
-        return;
-      }
-
-      this.statusMessage.textContent = `Error: ${error.message}`;
     }
   }
 
@@ -323,40 +337,56 @@ class DataWaster {
 
     const controller = new AbortController();
     this.#downloadControllers[threadId] = controller;
-    const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
 
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'Accept-Encoding': 'identity'
-        }
-      });
-      const reader = response.body.getReader();
+    while (this.#running && !this.isComplete()) {
+      try {
+        const url = `${this.#downloadFile}?t=${Date.now()}-${Math.random()}`;
 
-      while (this.#running) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          if (this.#running && !this.isComplete()) {
-            this.downloadWithoutRange(threadId);
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            'Accept-Encoding': 'identity'
           }
-          break;
+        });
+
+        this.#firstResponseReceived = true;
+        const reader = response.body.getReader();
+
+        let isDone = false;
+        while (this.#running && !isDone) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            isDone = true;
+            break;
+          }
+
+          if (!this.#running) break;
+
+          const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
+          const bytesToCount = Math.min(value.length, remainingNeeded);
+
+          this.#bytesDownloaded += bytesToCount;
+
+          if (this.isComplete()) {
+            this.completeOperation();
+            return;
+          }
         }
 
-        const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
-        const bytesToCount = Math.min(value.length, remainingNeeded);
-
-        this.#bytesDownloaded += bytesToCount;
-
-        if (this.isComplete()) {
-          this.completeOperation();
-          break;
+        if (this.#running && !this.isComplete()) {
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError' && this.#running) {
-        this.statusMessage.textContent = `Error: ${error.message}`;
+      } catch (error) {
+        if (error.name !== 'AbortError' && this.#running) {
+          console.warn(`Download error (continuing anyway): ${error.message}`);
+        }
+
+        if (this.#running && !this.isComplete() && error.name !== 'AbortError') {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else if (error.name === 'AbortError') {
+          return;
+        }
       }
     }
   }
@@ -436,7 +466,7 @@ class DataWaster {
       }
 
       if (this.#running && !this.isComplete()) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 30));
       }
     }
   }
