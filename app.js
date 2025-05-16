@@ -165,9 +165,19 @@ class DataWaster {
     this.#isUploadMode = isUploadActive;
     this.#targetSize = parseInt(this.dataSizeInput.value) * this.#MB;
 
-    if (isNaN(this.#targetSize) || this.#targetSize <= 0) {
+    const isInfiniteMode = this.#targetSize === 0;
+
+    if (!isInfiniteMode && (isNaN(this.#targetSize) || this.#targetSize < 0)) {
       this.statusMessage.textContent = this.#lang.invalidSizeError || 'Please enter a valid data size greater than 0 MB';
       return;
+    }
+
+    if (isInfiniteMode) {
+      this.statusMessage.textContent = 'Running in infinite mode. Data waster will run until manually stopped.';
+      this.statusMessage.className = 'text-info';
+    } else {
+      this.statusMessage.textContent = '';
+      this.statusMessage.className = 'text-warning';
     }
 
     this.startButton.textContent = this.#lang.stopButton || 'Stop';
@@ -179,10 +189,7 @@ class DataWaster {
     this.#startTime = Date.now();
     this.updateUI();
 
-    this.#updateInterval = setInterval(() => this.updateUI(), 100);
-
-    this.statusMessage.textContent = '';
-    this.statusMessage.className = 'text-warning';
+    this.#updateInterval = setInterval(() => this.updateUI(), 50);
 
     if (this.#isDownloadMode) {
       this.startDownload();
@@ -370,22 +377,12 @@ class DataWaster {
   async uploadChunk(threadId, size) {
     if (!this.#running) return;
 
-    const chunksCount = Math.ceil(size / this.#chunkSize);
-    let uploadedChunks = 0;
-
     const controller = new AbortController();
     this.#uploadControllers[threadId] = controller;
 
-    while (this.#running && uploadedChunks < chunksCount && !this.isComplete()) {
+    while (this.#running && !this.isComplete()) {
       try {
         const remainingNeeded = this.#targetSize - (this.#bytesDownloaded + this.#bytesUploaded);
-
-        const isLastChunk = (uploadedChunks === chunksCount - 1) ||
-                           (remainingNeeded <= this.#chunkSize);
-
-        const baseChunkSize = isLastChunk ?
-                          Math.min(remainingNeeded, this.#chunkSize) :
-                          Math.min(this.#chunkSize, size - (uploadedChunks * this.#chunkSize));
 
         const queryParamData = this.generateRandomString(4000);
 
@@ -399,9 +396,7 @@ class DataWaster {
           headerBytesTotal += headerName.length + 2 + headerValue.length;
         }
 
-        const totalExtraBytesInRequest = queryParamData.length + headerBytesTotal;
-        const totalTransferSize = totalExtraBytesInRequest;
-
+        const totalTransferSize = queryParamData.length + headerBytesTotal;
         const url = `${this.#uploadEndpoint}?waste=${queryParamData}`;
 
         try {
@@ -413,38 +408,35 @@ class DataWaster {
             },
             signal: controller.signal
           });
+
+          this.#firstResponseReceived = true;
         } catch (fetchError) {
           const errorMsg = fetchError.message || '';
           if (!(errorMsg.includes('CORS') ||
                 errorMsg.includes('NetworkError') ||
                 errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR'))) {
-            throw fetchError;
+            console.warn(`Upload error (continuing anyway): ${errorMsg}`);
           }
+
+          this.#firstResponseReceived = true;
         }
 
-        this.#firstResponseReceived = true;
-
         this.#bytesUploaded += totalTransferSize;
-        uploadedChunks++;
 
         if (this.isComplete()) {
           this.completeOperation();
+          break;
         }
       } catch (error) {
-        if (error.name === 'AbortError') return;
-
-        const errorMsg = error.message || '';
-        const isMethodNotAllowed = error.status === 405 || errorMsg.includes('405');
-        const isProtocolError = errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR');
-        const isCorsError = errorMsg.includes('CORS') || errorMsg.includes('NetworkError');
-
-        if (!isMethodNotAllowed && !isProtocolError && !isCorsError) {
-          this.statusMessage.textContent = `Upload error: ${error.message}`;
+        if (error.name === 'AbortError') {
+          return;
         }
 
-        if (this.#running) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        console.warn(`Error in upload thread ${threadId}: ${error.message}`);
+      }
+
+      if (this.#running && !this.isComplete()) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
   }
@@ -464,6 +456,8 @@ class DataWaster {
   }
 
   isComplete() {
+    if (this.#targetSize === 0) return false;
+
     const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
     return Math.abs(totalBytes - this.#targetSize) < 1;
   }
@@ -489,9 +483,27 @@ class DataWaster {
   updateUI() {
     const totalBytes = this.#bytesDownloaded + this.#bytesUploaded;
 
-    const downloadPercent = this.#targetSize > 0 ? (this.#bytesDownloaded / this.#targetSize) * 100 : 0;
-    const uploadPercent = this.#targetSize > 0 ? (this.#bytesUploaded / this.#targetSize) * 100 : 0;
-    const totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
+    let downloadPercent = 0;
+    let uploadPercent = 0;
+    let totalPercent = 0;
+
+    if (this.#targetSize > 0) {
+      downloadPercent = (this.#bytesDownloaded / this.#targetSize) * 100;
+      uploadPercent = (this.#bytesUploaded / this.#targetSize) * 100;
+      totalPercent = Math.min(100, (totalBytes / this.#targetSize) * 100);
+    } else if (this.#running) {
+      const cyclePosition = (Date.now() % 5000) / 5000;
+      const pulseValue = 40 * Math.sin(cyclePosition * Math.PI * 2) + 50;
+
+      if (this.#isDownloadMode && this.#isUploadMode) {
+        downloadPercent = this.#bytesDownloaded > 0 ? pulseValue / 2 : 0;
+        uploadPercent = this.#bytesUploaded > 0 ? pulseValue / 2 : 0;
+      } else if (this.#isDownloadMode) {
+        downloadPercent = pulseValue;
+      } else if (this.#isUploadMode) {
+        uploadPercent = pulseValue;
+      }
+    }
 
     const elapsedSeconds = (Date.now() - this.#startTime) / 1000;
     const speedMbps = elapsedSeconds > 0 ? (totalBytes / this.#MB) / elapsedSeconds : 0;
@@ -512,11 +524,13 @@ class DataWaster {
     // 2. Speed is slow (< 1MB/s)
     // 3. At least 30 seconds have passed since start
     // 4. We have received at least one response
+    // 5. We are not in infinite mode (where warning would be redundant)
     const timeSinceStart = Date.now() - this.#operationStartTime;
     const shouldShowWarning = this.#running &&
                              speedMbps < 1 &&
                              timeSinceStart > 30000 &&
-                             this.#firstResponseReceived;
+                             this.#firstResponseReceived &&
+                             this.#targetSize !== 0;
 
     if (shouldShowWarning) {
       this.statusMessage.textContent = this.#lang.slowNetworkWarning ||
